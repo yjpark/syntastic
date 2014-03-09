@@ -73,6 +73,7 @@ let g:syntastic_defaults = {
         \ 'stl_format':               '[Syntax: line:%F (%t)]',
         \ 'style_error_symbol':       'S>',
         \ 'style_warning_symbol':     'S>',
+        \ 'use_quickfix_lists':       0,
         \ 'warning_symbol':           '>>'
     \ }
 lockvar! g:syntastic_defaults
@@ -224,10 +225,11 @@ function! s:BufEnterHook() " {{{2
         \ 'autocmd: BufEnter, buffer ' . bufnr("") . ' = ' . string(bufname(str2nr(bufnr("")))) .
         \ ', &buftype = ' . string(&buftype))
     " TODO: at this point there is no b:syntastic_loclist
-    let loclist = filter(copy(getloclist(0)), 'v:val["valid"] == 1')
+    let loclist = (exists('g:syntastic_quickfix_rt') && g:syntastic_quickfix_rt) ? getqflist() : getloclist(0)
+    let loclist = filter(copy(loclist), 'v:val["valid"] == 1')
     let owner = str2nr(getbufvar(bufnr(""), 'syntastic_owner_buffer'))
     let buffers = syntastic#util#unique(map(loclist, 'v:val["bufnr"]') + (owner ? [owner] : []))
-    if &buftype == 'quickfix' && !empty(loclist) && empty(filter( buffers, 'syntastic#util#bufIsActive(v:val)' ))
+    if &buftype == 'quickfix' && !empty(loclist) && empty(filter(buffers, 'syntastic#util#bufIsActive(v:val)'))
         call SyntasticLoclistHide()
     endif
 endfunction " }}}2
@@ -267,12 +269,21 @@ function! s:UpdateErrors(auto_invoked, ...) " {{{2
 
     let w:syntastic_loclist_set = 0
     if syntastic#util#var('always_populate_loc_list') || do_jump
-        call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: setloclist (new)')
-        call setloclist(0, loclist.getRaw())
+        if loclist.getQf()
+            call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: setqflist (new)')
+            call setqflist(loclist.getRaw())
+        else
+            call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: setloclist (new)')
+            call setloclist(0, loclist.getRaw())
+        endif
         let w:syntastic_loclist_set = 1
         if run_checks && do_jump && !loclist.isEmpty()
             call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: jump')
-            silent! lrewind
+            if loclist.getQf()
+                silent! crewind
+            else
+                silent! lrewind
+            endif
 
             " XXX: Vim doesn't call autocmd commands in a predictible
             " order, which can lead to missing filetype when jumping
@@ -448,15 +459,25 @@ function! SyntasticMake(options) " {{{2
         let err_lines = call('syntastic#preprocess#' . a:options['preprocess'], [err_lines])
         call syntastic#log#debug(g:SyntasticDebugLoclist, 'preprocess:', err_lines)
     endif
-    lgetexpr err_lines
 
-    let errors = deepcopy(getloclist(0))
+    if !exists('g:syntastic_quickfix_rt')
+        let g:syntastic_quickfix_rt = g:syntastic_use_quickfix_lists
+    endif
+    call syntastic#log#debugShowVariables(g:SyntasticDebugLoclist, 'quickfix_rt')
+
+    if g:syntastic_quickfix_rt
+        cgetexpr err_lines
+        let errors = deepcopy(getqflist())
+        silent! colder
+    else
+        lgetexpr err_lines
+        let errors = deepcopy(getloclist(0))
+        silent! lolder
+    endif
 
     if has_key(a:options, 'cwd')
         execute 'lcd ' . fnameescape(old_cwd)
     endif
-
-    silent! lolder
 
     " restore options {{{3
     let &errorformat = old_errorformat

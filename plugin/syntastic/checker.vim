@@ -73,7 +73,15 @@ function! g:SyntasticChecker.getLocListRaw() " {{{2
 endfunction " }}}2
 
 function! g:SyntasticChecker.getLocList() " {{{2
-    return g:SyntasticLoclist.New(self.getLocListRaw())
+    let llist = g:SyntasticLoclist.New(self.getLocListRaw())
+    if !llist.isEmpty()
+        if !exists('g:syntastic_quickfix_rt')
+            let g:syntastic_quickfix_rt = g:syntastic_use_quickfix_lists
+        endif
+        call llist.setQf(g:syntastic_quickfix_rt)
+    endif
+
+    return llist
 endfunction " }}}2
 
 function! g:SyntasticChecker.getWantSort() " {{{2

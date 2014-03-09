@@ -20,6 +20,7 @@ function! g:SyntasticLoclist.New(rawLoclist) " {{{2
 
     let newObj._rawLoclist = llist
     let newObj._name = ''
+    let newObj._qf = 0
     let newObj._owner = bufnr('')
 
     return newObj
@@ -33,9 +34,9 @@ function! g:SyntasticLoclist.current() " {{{2
 endfunction " }}}2
 
 function! g:SyntasticLoclist.extend(other) " {{{2
-    let list = self.copyRaw()
-    call extend(list, a:other.copyRaw())
-    return g:SyntasticLoclist.New(list)
+    let llist = g:SyntasticLoclist.New(extend( self.copyRaw(), a:other.getRaw() ))
+    call llist.setQf(a:other.getQf())
+    return llist
 endfunction " }}}2
 
 function! g:SyntasticLoclist.sort() " {{{2
@@ -131,6 +132,14 @@ function! g:SyntasticLoclist.setOwner(buffer) " {{{2
     let self._owner = type(a:buffer) == type(0) ? a:buffer : str2nr(a:buffer)
 endfunction " }}}2
 
+function! g:SyntasticLoclist.getQf() " {{{2
+    return self._qf
+endfunction " }}}2
+
+function! g:SyntasticLoclist.setQf(quickfix) " {{{2
+    let self._qf = a:quickfix
+endfunction " }}}2
+
 function! g:SyntasticLoclist.deploy() " {{{2
     for buf in self.getBuffers()
         call setbufvar(buf, 'syntastic_loclist', self)
@@ -211,8 +220,13 @@ function! g:SyntasticLoclist.setloclist() " {{{2
         let w:syntastic_loclist_set = 0
     endif
     let replace = g:syntastic_reuse_loc_lists && w:syntastic_loclist_set
-    call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: setloclist ' . (replace ? '(replace)' : '(new)'))
-    call setloclist(0, self.getRaw(), replace ? 'r' : ' ')
+    if self._qf
+        call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: setqflist ' . (replace ? '(replace)' : '(new)'))
+        call setqflist(self.getRaw(), replace ? 'r' : ' ')
+    else
+        call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: setloclist ' . (replace ? '(replace)' : '(new)'))
+        call setloclist(0, self.getRaw(), replace ? 'r' : ' ')
+    endif
     let w:syntastic_loclist_set = 1
 endfunction " }}}2
 
@@ -223,13 +237,13 @@ function! g:SyntasticLoclist.show() " {{{2
 
     if !self.isEmpty()
         let num = winnr()
-        execute "lopen " . syntastic#util#var('loc_list_height')
+        execute (self._qf ? 'c' : 'l') . 'open ' . syntastic#util#var('loc_list_height')
         if num != winnr()
             wincmd p
         endif
 
         " try to find the loclist window and set w:quickfix_title
-        let errors = getloclist(0)
+        let errors = self._qf ? getqflist() : getloclist(0)
         for buf in tabpagebuflist()
             if buflisted(buf) && bufloaded(buf) && getbufvar(buf, '&buftype') ==# 'quickfix'
                 let win = bufwinnr(buf)
@@ -239,7 +253,8 @@ function! g:SyntasticLoclist.show() " {{{2
                 " errors == getloclist(0) is the only somewhat safe way to
                 " achieve that
                 if strpart(title, 0, 16) ==# ':SyntasticCheck ' ||
-                            \ ( (title == '' || title ==# ':setloclist()') && errors == getloclist(0) )
+                            \ ( (title == '' || title ==# (self._qf ? ':setqflist()' : ':setloclist()')) &&
+                            \ errors == (self._qf ? getqflist() : getloclist(0)) )
                     call setwinvar(win, 'quickfix_title', ':SyntasticCheck ' . self._name)
                     call setbufvar(buf, 'syntastic_owner_buffer', self._owner)
                 endif
@@ -254,7 +269,13 @@ endfunction " }}}2
 
 function! SyntasticLoclistHide() " {{{2
     call syntastic#log#debug(g:SyntasticDebugNotifications, 'loclist: hide')
-    silent! lclose
+    if exists('g:syntastic_quickfix_rt')
+        if g:syntastic_quickfix_rt
+            silent! cclose
+        else
+            silent! lclose
+        endif
+    endif
 endfunction " }}}2
 
 " }}}1

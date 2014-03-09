@@ -24,11 +24,15 @@ function! g:SyntasticAutoloclistNotifier.AutoToggle(loclist) " {{{2
             call a:loclist.show()
         endif
     else
-        if syntastic#util#var('auto_loc_list') > 0
+        if syntastic#util#var('auto_loc_list') > 0 && exists('g:syntastic_quickfix_rt')
 
             "TODO: this will close the loc list window if one was opened by
             "something other than syntastic
-            lclose
+            if g:syntastic_quickfix_rt
+                cclose
+            else
+                lclose
+            endif
         endif
     endif
 endfunction " }}}2
