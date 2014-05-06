@@ -24,10 +24,11 @@ CONTENTS                                                  *syntastic-contents*
     2.Functionality provided.......................|syntastic-functionality|
         2.1.The statusline flag....................|syntastic-statusline-flag|
         2.2.Error signs............................|syntastic-error-signs|
-        2.3.Error window...........................|syntastic-error-window|
-        2.4.Error highlighting.....................|syntastic-highlighting|
-        2.5.Aggregating errors.....................|syntastic-aggregating-errors|
-        2.6.Filtering errors.......................|syntastic-filtering-errors|
+        2.3.Location lists and quickfix lists......|syntastic-error-loclists|
+        2.4.Error window...........................|syntastic-error-window|
+        2.5.Error highlighting.....................|syntastic-highlighting|
+        2.6.Aggregating errors.....................|syntastic-aggregating-errors|
+        2.7.Filtering errors.......................|syntastic-filtering-errors|
     3.Commands.....................................|syntastic-commands|
     4.Global Options...............................|syntastic-global-options|
     5.Checker Options..............................|syntastic-checker-options|
@@ -153,16 +154,29 @@ Example: >
     highlight SyntasticErrorLine guibg=#2f0000
 <
 ------------------------------------------------------------------------------
-2.3. The error window                         *:Errors* *syntastic-error-window*
+2.3. Location lists and quickfix lists              *syntastic-error-loclists*
+
+Vim has two mechanisms for working with error messages, quickfix lists (cf.
+|quickfix|) and location lists (see |location-list|).  By default syntastic uses
+location lists, because they make it possible to display error windows for
+multiple buffers.  But you can choose to work with quickfix lists instead, by
+setting the |syntastic_use_quickfix_lists| option: >
+    let g:syntastic_use_quickfix_lists = 1
+<
+In the rest of this document we refer to both quickfix lists and location lists
+as "location lists" or "loclists".
+
+------------------------------------------------------------------------------
+2.4. The error window                         *:Errors* *syntastic-error-window*
 
 You can use the :Errors command to display the errors for the current buffer
 in the |location-list|.
 
-Note that when you use :Errors, the current location list is overwritten with
+Note that when you use |:Errors|, the current location list is overwritten with
 Syntastic's own location list.
 
 ------------------------------------------------------------------------------
-2.4. Error highlighting                               *syntastic-highlighting*
+2.5. Error highlighting                               *syntastic-highlighting*
 
 Some checkers provide enough information for syntastic to be able to highlight
 errors. By default the SpellBad syntax highlight group is used to color errors,
@@ -175,7 +189,7 @@ Example: >
     highlight SyntasticError guibg=#2f0000
 <
 ------------------------------------------------------------------------------
-2.5. Aggregating errors                         *syntastic-aggregating-errors*
+2.6. Aggregating errors                         *syntastic-aggregating-errors*
 
 By default, namely if |'syntastic_aggregate_errors'| is unset, syntastic runs
 in turn the checkers corresponding to the filetype of the current file (see
@@ -197,7 +211,7 @@ type, then column number.  Otherwise messages produced by the same checker are
 grouped together.
 
 ------------------------------------------------------------------------------
-2.6 Filtering errors                              *syntastic-filtering-errors*
+2.7 Filtering errors                              *syntastic-filtering-errors*
 
 You can selectively disable some of the errors found by checkers either
 using |'syntastic_quiet_messages'|, or by specifying a list of patterns in
@@ -501,6 +515,12 @@ statusline: >
 <
 If the buffer had 2 warnings, starting on line 5 then this would appear: >
     [Warn: 5 #2]
+<
+                                              *'syntastic_use_quickfix_lists'*
+Default: 0
+When set, syntastic will store error messages in |quickfix| lists.  When unset
+(which is the default), |location-list|s are used instead.  Example: >
+    let g:syntastic_use_quickfix_lists = 1
 <
                                                     *'syntastic_full_redraws'*
 Default: 0 in GUI Vim and MacVim, 1 otherwise
